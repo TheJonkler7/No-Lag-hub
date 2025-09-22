@@ -1,0 +1,316 @@
+--// Skeleton Hub Full Script
+local player = game.Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+
+-- ScreenGui
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "SkeletonHub"
+
+-- Toggle Key
+local toggleKey = Enum.KeyCode.RightControl
+local isOpen = true
+
+-- Main Frame
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 500, 0, 350)
+main.Position = UDim2.new(0.25, 0, 0.25, 0)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+main.BorderSizePixel = 0
+main.Visible = false -- hidden until after intro
+
+-- Skeleton Emoji Background
+for i = 1, 40 do
+    local skull = Instance.new("TextLabel", main)
+    skull.Size = UDim2.new(0, 40, 0, 40)
+    skull.Position = UDim2.new(math.random(), -20, math.random(), -20)
+    skull.Text = "💀"
+    skull.TextColor3 = Color3.fromRGB(60, 60, 60)
+    skull.TextScaled = true
+    skull.BackgroundTransparency = 1
+end
+
+-- Tab Holder
+local tabHolder = Instance.new("Frame", main)
+tabHolder.Size = UDim2.new(0, 120, 1, 0)
+tabHolder.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+tabHolder.BorderSizePixel = 0
+
+-- Content Holder
+local content = Instance.new("Frame", main)
+content.Position = UDim2.new(0, 120, 0, 0)
+content.Size = UDim2.new(1, -120, 1, 0)
+content.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+content.BorderSizePixel = 0
+
+-- Easter Egg Function (skull pop when switching tabs)
+local function skullPop()
+    local skull = Instance.new("TextLabel", gui)
+    skull.Text = "💀"
+    skull.Size = UDim2.new(0, 100, 0, 100)
+    skull.Position = UDim2.new(math.random(), -50, math.random(), -50)
+    skull.TextScaled = true
+    skull.TextColor3 = Color3.fromRGB(255, 255, 255)
+    skull.BackgroundTransparency = 1
+
+    task.spawn(function()
+        for i = 0, 1, 0.05 do
+            skull.TextTransparency = i
+            skull.Position = skull.Position + UDim2.new(0, 0, -0.01, 0)
+            task.wait(0.05)
+        end
+        skull:Destroy()
+    end)
+end
+
+-- Create Tabs
+local function createTab(name)
+    local tabBtn = Instance.new("TextButton", tabHolder)
+    tabBtn.Text = name
+    tabBtn.Size = UDim2.new(1, 0, 0, 40)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tabBtn.BorderSizePixel = 0
+
+    local page = Instance.new("Frame", content)
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, pg in pairs(content:GetChildren()) do
+            pg.Visible = false
+        end
+        page.Visible = true
+        skullPop()
+    end)
+
+    return page
+end
+
+-- Create Toggle Button
+local function createToggle(tab, text, callback)
+    local btn = Instance.new("TextButton", tab)
+    btn.Size = UDim2.new(0, 200, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, (#tab:GetChildren() - 1) * 40)
+    btn.Text = "[OFF] " .. text
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BorderSizePixel = 0
+
+    local enabled = false
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        btn.Text = (enabled and "[ON] " or "[OFF] ") .. text
+        callback(enabled)
+    end)
+end
+
+--------------------------------------------------
+-- TABS
+--------------------------------------------------
+local mainTab = createTab("Main Features")
+local moveTab = createTab("Movement")
+local visualsTab = createTab("Visuals")
+local expTab  = createTab("Explorer")
+local infoTab = createTab("Info")
+
+--------------------------------------------------
+-- MOVEMENT FEATURES
+--------------------------------------------------
+-- Fly
+local flying = false
+local flySpeed = 50
+local bodyGyro, bodyVel
+createToggle(moveTab, "Fly", function(on)
+    if on then
+        flying = true
+        local hrp = char:WaitForChild("HumanoidRootPart")
+
+        bodyGyro = Instance.new("BodyGyro", hrp)
+        bodyGyro.P = 9e4
+        bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bodyGyro.CFrame = hrp.CFrame
+
+        bodyVel = Instance.new("BodyVelocity", hrp)
+        bodyVel.Velocity = Vector3.new(0,0,0)
+        bodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+
+        local uis = game:GetService("UserInputService")
+        local cam = workspace.CurrentCamera
+
+        task.spawn(function()
+            while flying do
+                task.wait()
+                bodyGyro.CFrame = cam.CFrame
+                local move = Vector3.new()
+                if uis:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+                if uis:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+                if uis:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+                if uis:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+                if uis:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+                if uis:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+                bodyVel.Velocity = move * flySpeed
+            end
+        end)
+    else
+        flying = false
+        if bodyGyro then bodyGyro:Destroy() end
+        if bodyVel then bodyVel:Destroy() end
+    end
+end)
+
+-- Noclip
+local noclip = false
+createToggle(moveTab, "Noclip", function(on)
+    noclip = on
+    if on then
+        game:GetService("RunService").Stepped:Connect(function()
+            if noclip then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+--------------------------------------------------
+-- VISUALS FEATURES
+--------------------------------------------------
+-- ESP with Names
+local espEnabled = false
+local espConnections = {}
+local function addESP(target)
+    if not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkeletonESP"
+    highlight.Adornee = target.Character
+    highlight.FillColor = Color3.fromRGB(255,0,0)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = Color3.fromRGB(255,255,255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = target.Character
+
+    -- Name above head
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "NameESP"
+    bill.Adornee = hrp
+    bill.Size = UDim2.new(0, 100, 0, 50)
+    bill.StudsOffset = Vector3.new(0, 2.5, 0)
+    bill.AlwaysOnTop = true
+    bill.Parent = target.Character
+
+    local nameLabel = Instance.new("TextLabel", bill)
+    nameLabel.Size = UDim2.new(1,0,1,0)
+    nameLabel.Text = target.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextScaled = true
+
+    espConnections[target] = {highlight, bill}
+end
+
+local function removeESP(target)
+    if espConnections[target] then
+        for _, obj in pairs(espConnections[target]) do
+            if obj then obj:Destroy() end
+        end
+        espConnections[target] = nil
+    end
+end
+
+local function enableESP()
+    espEnabled = true
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player then addESP(plr) end
+    end
+    game.Players.PlayerAdded:Connect(function(plr)
+        plr.CharacterAdded:Connect(function()
+            task.wait(1)
+            if espEnabled then addESP(plr) end
+        end)
+    end)
+end
+
+local function disableESP()
+    espEnabled = false
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        removeESP(plr)
+    end
+end
+
+createToggle(visualsTab, "ESP with Names", function(on)
+    if on then enableESP() else disableESP() end
+end)
+
+-- Break Test ESP
+local testESPEnabled = false
+local espParts = {}
+
+local function testPart(part)
+    if not part:IsA("BasePart") then return end
+    local statusColor = part.Anchored and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    local gui = Instance.new("BillboardGui")
+    gui.Adornee = part
+    gui.Size = UDim2.new(0,50,0,50)
+    gui.AlwaysOnTop = true
+    gui.Name = "BreakTestESP"
+    gui.Parent = part
+
+    local label = Instance.new("TextLabel", gui)
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 0.5
+    label.BackgroundColor3 = statusColor
+    label.Text = part.Name
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextScaled = true
+
+    espParts[part] = gui
+end
+
+local function clearTestESP()
+    for part, gui in pairs(espParts) do
+        if gui then gui:Destroy() end
+    end
+    espParts = {}
+end
+
+local function enableTestESP()
+    testESPEnabled = true
+    for _, part in pairs(workspace:GetDescendants()) do
+        testPart(part)
+    end
+    workspace.DescendantAdded:Connect(function(part)
+        if testESPEnabled then testPart(part) end
+    end)
+end
+
+local function disableTestESP()
+    testESPEnabled = false
+    clearTestESP()
+end
+
+createToggle(visualsTab, "Break Test ESP", function(on)
+    if on then enableTestESP() else disableTestESP() end
+end)
+
+--------------------------------------------------
+-- EXPLORER
+--------------------------------------------------
+local list = Instance.new("ScrollingFrame", expTab)
+list.Size = UDim2.new(1, 0, 1, 0)
+list.CanvasSize = UDim2.new(0, 0, 2, 0)
+list.BackgroundTransparency = 1
+
+for _, obj in pairs(workspace:GetChildren()) do
+    local item = Instance.new("TextLabel", list)
+    item.Size = UDim2.new(1, -10, 0, 25)
+    item.Text = obj.Name .. " [" .. obj.ClassName .. "]"
+    item.BackgroundColor3 = Color
