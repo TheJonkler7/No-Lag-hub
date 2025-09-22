@@ -1,0 +1,188 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiService = game:GetService("GuiService")
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local humanoid = char:WaitForChild("Humanoid")
+local hrp = char:WaitForChild("HumanoidRootPart")
+local cam = workspace.CurrentCamera
+
+-- Helper functions
+local function createUI(parent, type_, props)
+    local obj = Instance.new(type_, parent)
+    for k,v in pairs(props) do obj[k] = v end
+    return obj
+end
+
+-- ========== GUI Setup ==========
+local gui = createUI(player:WaitForChild("PlayerGui"),"ScreenGui",{Name="SkeletonHub"})
+local main = createUI(gui,"Frame",{Size=UDim2.new(0,500,0,350),Position=UDim2.new(0.25,0,0.25,0),BackgroundColor3=Color3.new(0,0,0)})
+main.ClipsDescendants = true
+
+local toggleBtn = createUI(gui,"TextButton",{Size=UDim2.new(0,120,0,40),Position=UDim2.new(0,10,0,10),Text="Toggle GUI",BackgroundColor3=Color3.fromRGB(30,30,30),TextColor3=Color3.new(1,1,1)})
+toggleBtn.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
+
+-- Tabs
+local tabHolder = createUI(main,"Frame",{Size=UDim2.new(0,120,1,0),BackgroundColor3=Color3.fromRGB(20,20,20)})
+local tabLayout = createUI(tabHolder,"UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,5)})
+local content = createUI(main,"Frame",{Size=UDim2.new(1,-120,1,0),Position=UDim2.new(0,120,0,0),BackgroundColor3=Color3.fromRGB(15,15,15)})
+
+local function createTab(name)
+    local btn = createUI(tabHolder,"TextButton",{Size=UDim2.new(1,0,0,40),Text=name,BackgroundColor3=Color3.fromRGB(40,40,40),TextColor3=Color3.fromRGB(200,200,200),BorderSizePixel=0})
+    local page = createUI(content,"ScrollingFrame",{Size=UDim2.new(1,0,1,0),CanvasSize=UDim2.new(0,0,0,0),ScrollBarThickness=6,BackgroundTransparency=1,Visible=false})
+    local layout = createUI(page,"UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,5)})
+    btn.MouseButton1Click:Connect(function()
+        for _,pg in pairs(content:GetChildren()) do pg.Visible = false end
+        page.Visible = true
+        -- Skeleton emoji Easter egg
+        local emoji = createUI(gui,"TextLabel",{Size=UDim2.new(0,50,0,50),Position=UDim2.new(0.5,-25,0.5,-25),Text="💀",TextScaled=true,BackgroundTransparency=1})
+        task.delay(1,function() emoji:Destroy() end)
+    end)
+    return page
+end
+
+local function createToggle(tab,text,callback)
+    local btn = createUI(tab,"TextButton",{Size=UDim2.new(0,200,0,30),Text="[OFF] "..text,BackgroundColor3=Color3.fromRGB(30,30,30),TextColor3=Color3.fromRGB(255,255,255),BorderSizePixel=0})
+    local enabled = false
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        btn.Text = (enabled and "[ON] " or "[OFF] ")..text
+        pcall(callback,enabled)
+    end)
+end
+
+-- ========== Animation ==========
+do
+    local intro = createUI(gui,"Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.new(0,0,0)})
+    local title = createUI(intro,"TextLabel",{Size=UDim2.new(1,0,0.6,0),Text="💀 Welcome to Skeleton Hub 💀",TextScaled=true,TextColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=Enum.Font.GothamBold})
+    local subtitle = createUI(intro,"TextLabel",{Size=UDim2.new(1,0,0.2,0),Position=UDim2.new(0,0,0.6,0),Text="Made by SuperCool",TextScaled=true,TextColor3=Color3.fromRGB(200,200,200),BackgroundTransparency=1,Font=Enum.Font.Gotham})
+    local sound = createUI(intro,"Sound",{SoundId="rbxassetid://9115292963",Volume=0.5})
+    sound:Play()
+    title.TextTransparency=1; subtitle.TextTransparency=1
+    for i=0,1,0.03 do
+        title.TextTransparency=1-i; subtitle.TextTransparency=1-i
+        task.wait(0.03)
+    end
+    task.wait(2)
+    intro:Destroy()
+end
+
+-- ========== Tabs ==========
+local infoTab = createTab("Info")
+local mainTab = createTab("Main Features")
+mainTab.Visible = true
+
+-- ========== Info Tab ==========
+createToggle(infoTab,"Show Server ID",function(on)
+    if on then
+        local idLabel = createUI(infoTab,"TextLabel",{Size=UDim2.new(1,0,0,30),Text="Server ID: "..tostring(game.JobId),TextColor3=Color3.new(1,1,1),BackgroundTransparency=1,TextScaled=true})
+    end
+end)
+
+local fpsLabel
+createToggle(infoTab,"FPS Counter",function(on)
+    if on then
+        fpsLabel = createUI(infoTab,"TextLabel",{Size=UDim2.new(1,0,0,30),Text="FPS: 0",TextColor3=Color3.new(1,1,1),BackgroundTransparency=1,TextScaled=true})
+        RunService.RenderStepped:Connect(function(dt)
+            if fpsLabel then fpsLabel.Text = "FPS: "..math.floor(1/dt) end
+        end)
+    else
+        if fpsLabel then fpsLabel:Destroy() end
+    end
+end)
+
+createToggle(infoTab,"Player Count",function(on)
+    if on then
+        local plLabel = createUI(infoTab,"TextLabel",{Size=UDim2.new(1,0,0,30),Text="Players: "..#Players:GetPlayers(),TextColor3=Color3.new(1,1,1),BackgroundTransparency=1,TextScaled=true})
+        Players.PlayerAdded:Connect(function() if on then plLabel.Text = "Players: "..#Players:GetPlayers() end end)
+        Players.PlayerRemoving:Connect(function() if on then plLabel.Text = "Players: "..#Players:GetPlayers() end end)
+    end
+end)
+
+-- ========== Main Features ==========
+-- Fly (better)
+local flying, flyVel, flyGyro = false, nil, nil
+createToggle(mainTab,"Fly",function(on)
+    flying = on
+    if on then
+        flyGyro = Instance.new("BodyGyro", hrp)
+        flyGyro.MaxTorque = Vector3.new(9e9,9e9,9e9)
+        flyGyro.P = 3000
+        flyVel = Instance.new("BodyVelocity", hrp)
+        flyVel.MaxForce = Vector3.new(9e9,9e9,9e9)
+        flyVel.Velocity = Vector3.new(0,0,0)
+        task.spawn(function()
+            while flying do
+                task.wait()
+                local dir = Vector3.new()
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+                flyVel.Velocity = dir*60
+                flyGyro.CFrame = cam.CFrame
+            end
+        end)
+    else
+        if flyGyro then flyGyro:Destroy() end
+        if flyVel then flyVel:Destroy() end
+    end
+end)
+
+-- Noclip
+local noclip=false
+createToggle(mainTab,"Noclip",function(on) noclip=on end)
+RunService.Stepped:Connect(function() if noclip then for _,p in pairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end end)
+
+-- Float
+createToggle(mainTab,"Float",function(on)
+    local floatEvent = ReplicatedStorage:FindFirstChild("RemoteEvents") and ReplicatedStorage.RemoteEvents:FindFirstChild("Float")
+    if floatEvent and on then pcall(function() floatEvent:FireServer() end) end
+end)
+
+-- Speed
+createToggle(mainTab,"Speed Enhancer",function(on)
+    humanoid.WalkSpeed = on and 100 or 16
+end)
+
+-- Fling
+local flingEnabled=false
+createToggle(mainTab,"Fling",function(on) flingEnabled=on end)
+RunService.Stepped:Connect(function()
+    if flingEnabled then
+        for _,plr in pairs(Players:GetPlayers()) do
+            if plr~=player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                plr.Character.HumanoidRootPart.Velocity = Vector3.new(math.random(-50,50),50,math.random(-50,50))
+            end
+        end
+    end
+end)
+
+-- ESP
+local espEnabled=false
+local espConns={}
+local function addESP(plr)
+    if plr==player then return end
+    local char=plr.Character
+    if not char then return end
+    local hrp=char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local bill = createUI(hrp,"BillboardGui",{Adornee=hrp,Size=UDim2.new(0,100,0,50),StudsOffset=Vector3.new(0,3,0),AlwaysOnTop=true})
+    local label = createUI(bill,"TextLabel",{Size=UDim2.new(1,0,1,0),Text=plr.Name,TextColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=1,TextScaled=true})
+    espConns[plr] = bill
+end
+local function removeESP(plr) if espConns[plr] then espConns[plr]:Destroy() espConns[plr]=nil end end
+createToggle(mainTab,"ESP (Player Names)",function(on)
+    espEnabled=on
+    if on then
+        for _,plr in pairs(Players:GetPlayers()) do addESP(plr) end
+        Players.PlayerAdded:Connect(function(plr) plr.CharacterAdded:Connect(function() task.wait(1) if espEnabled then addESP(plr) end end) end)
+        Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
+    else
+        for _,plr in pairs(Players:GetPlayers()) do removeESP(plr) end
+    end
+end)
